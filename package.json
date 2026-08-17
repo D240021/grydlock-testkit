@@ -4,7 +4,15 @@
   "description": "Testnet fixtures and score stubs for evaluating Gryd Lock.",
   "license": "MIT",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "validate": "node scripts/validate-fixtures.mjs"
+    "validate": "node scripts/validate-fixtures.mjs",
+    "evaluate": "node scripts/evaluate.mjs",
+    "test": "node --test scripts/evaluate.test.mjs"
+  },
+  "dependencies": {
+    "@stellar/stellar-sdk": "^16.0.1"
   }
 }

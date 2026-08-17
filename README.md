@@ -24,9 +24,13 @@ grydlock-testkit/
   LICENSE
   package.json
   .github/workflows/ci.yml
+  .github/workflows/evaluate.yml
   destinations.json
   scores.json
   scripts/validate-fixtures.mjs
+  scripts/evaluate.mjs
+  scripts/evaluate/
+  scripts/evaluate.test.mjs
   transactions/
     payment.xdr
     path_payment.xdr
@@ -38,11 +42,30 @@ npm run validate
 
 Checks that every destination in destinations.json has a matching entry in scores.json, every score is an integer in 0-100, and every label is one of clean, suspicious, or malicious.
 
+## End-to-End Evaluation
+
+npm run evaluate
+
+Deterministic product-level smoke test against the working-tree fixtures (pin a tagged release by checking out that tag first). For every transaction XDR it:
+
+1. Decodes the envelope with the extension decoder
+2. Extracts scoreable destinations
+3. Looks up stub scores the way `StubOracle` does
+4. Maps each score through the research warning tiers
+5. Compares the derived tier with the fixture label
+
+Unknown destinations are reported as `unscored`, not as low-risk — `StubOracle.getScore()` would otherwise return `0` and hide a miss. Failures name the fixture and the stage (`decode`, `extract`, `lookup`, `tier`, `compare`).
+
+`npm test` covers valid, unknown, and malformed inputs. CI runs both the tests and `npm run evaluate` when fixtures or the evaluator change.
+
+`npm run evaluate -- --json` prints the full report as JSON.
+
 ## How It's Used
 
 - grydlock-oracle-adapter loads scores.json in its StubOracle to return scores without a live backend
 - The extension is pointed at the stub oracle during development, so the full path - decode, score, tier, warning - runs entirely offline
 - grydlock-research runs the extension across every entry in destinations.json and measures how often the assigned tier matches the label
+- `npm run evaluate` in this repo is the deterministic entry point for that combined workflow
 
 ## Consumer Contract Test
 
