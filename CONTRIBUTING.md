@@ -11,6 +11,9 @@ Thank you for contributing! This file documents the labelling rubric, required f
 - `destinations.json` — labelled testnet addresses and assets (`clean | suspicious | malicious`)
 - `scores.json` — deterministic 0–100 stub scores consumed by `StubOracle` in `grydlock-oracle-adapter`
 - `transactions/` — unsigned XDR samples for offline decode testing
+- `scenarios/` — versioned, ordered multi-transaction attack workflows (see `scenarios/README.md`)
+
+Scenario bundles are **additive**: they reference the point fixtures above by stable id and never change their shape. Do not force an existing destination, score, or transaction into a scenario.
 
 Because downstream repos (`grydlock-oracle-adapter`, `grydlock-research`) depend on the exact
 contents of `destinations.json` and `scores.json`, changes to those files are **consequential** to
@@ -100,7 +103,6 @@ Every new entry must have a matching entry in `scores.json` with an integer scor
 npm install
 npm run validate
 npm test
-npm run evaluate
 ```
 
 `npm run validate` checks:
@@ -108,6 +110,34 @@ npm run evaluate
 - Every score is an integer in 0–100
 - Every label is one of `clean`, `suspicious`, or `malicious`
 - No extra entries in `scores.json` without a matching destination
+- Every scenario in `scenarios/` passes schema, reference, and ordering validation
+
+`npm test` runs the test suite with Node's built-in test runner (no dependencies).
+
+To replay a single scenario offline: `npm run replay -- scenarios/<file>.json`.
+
+## Scenario bundles
+
+A scenario groups participants, destination/transaction references, and ordered
+steps into a deterministic multi-transaction workflow. The full schema, the
+reference/ordering validation rules, the synthetic state and warning model, and
+a complete example live in [`scenarios/README.md`](scenarios/README.md).
+
+Before adding a scenario:
+
+1. **Reuse existing fixtures only** — every participant/destination reference
+   must resolve to an entry in `destinations.json`, and every transaction
+   reference to a `transactions/*.xdr` stem. Scenarios are synthetic and never
+   fetch live data.
+2. **Declare a supported `schema_version`** — currently `"1.0"`. Unsupported
+   versions fail loudly.
+3. **Make the risk emerge from the sequence** — a scenario is for workflows
+   whose danger comes from the ordering of steps, not one isolated transaction.
+4. **Declare an outcome per step** — every step needs `expected_warnings`
+   and/or `expected_state` so the replay has something machine-checkable to
+   compare against.
+5. **Run it** — `npm run validate:scenarios` and
+   `npm run replay -- scenarios/<file>.json` must both pass.
 
 `npm run evaluate` runs the product-level pipeline (decode → extract → stub lookup → tier mapping → label comparison) against every transaction fixture and every labelled destination. Unknown destinations are classified as `unscored`, distinct from low-risk. `npm test` covers valid, unknown, and malformed inputs.
 
@@ -118,12 +148,12 @@ npm run evaluate
 Before approving a fixture PR, verify each of the following:
 
 1. **`npm run validate` passes** — run it locally on the branch.
-2. **`npm test` and `npm run evaluate` pass** — the product pipeline still decodes every transaction fixture and the derived tiers still match the labels.
-3. **The label is defensible from the notes** — reading the `notes` field alone, a third party should agree with the label without needing additional context. If the notes say "no red flags" but the label is `malicious`, that's a fail.
-4. **The score is consistent with the band** — `clean` = 0–25, `suspicious` = 40–70, `malicious` = 75–100. No gaps in those ranges are intentional (30–39 and 71–74 are unused).
-5. **Scores vary within a band** — if two destinations have identical risk profiles, give them different scores within the band so the evaluator can distinguish them.
-6. **New XDR fixtures are generated via script, not hand-edited** — if a PR adds a new operation type to `transactions/`, the XDR must come from the generation script (or the PR author must explain why a hand-edited XDR is necessary).
-7. **Changelog is updated** — any PR touching `destinations.json`, `scores.json`, or `transactions/` must have a corresponding entry under `[Unreleased]` in `CHANGELOG.md`.
+2. **The label is defensible from the notes** — reading the `notes` field alone, a third party should agree with the label without needing additional context. If the notes say "no red flags" but the label is `malicious`, that's a fail.
+3. **The score is consistent with the band** — `clean` = 0–25, `suspicious` = 40–70, `malicious` = 75–100. No gaps in those ranges are intentional (30–39 and 71–74 are unused).
+4. **Scores vary within a band** — if two destinations have identical risk profiles, give them different scores within the band so the evaluator can distinguish them.
+5. **New XDR fixtures are generated via script, not hand-edited** — if a PR adds a new operation type to `transactions/`, the XDR must come from the generation script (or the PR author must explain why a hand-edited XDR is necessary).
+6. **Changelog is updated** — any PR touching `destinations.json`, `scores.json`, or `transactions/` must have a corresponding entry under `[Unreleased]` in `CHANGELOG.md`.
+7. **Scenarios validate and replay** — any PR adding or changing a file under `scenarios/` must pass `npm run validate:scenarios` and `npm run replay -- scenarios/<file>.json`, and the scenario may only reference existing fixtures.
 
 ---
 
